@@ -1,0 +1,2233 @@
+﻿module("BQTPPlay",package.seeall)
+require("Base/BQTPHeadRequire")
+local gameName = nil
+local bundleName = "Prefab"
+local editorPath = ""
+local prefabName = "BQTPPlay"
+local NetFly=false
+local outCoin=0
+
+AudioManager = nil --声音管理器
+
+playerMoney = 0 --玩家金币
+nowBetNumber = 0--当前下注金额下标
+rewardMoney = 0--赢取金币 
+freerewardMoney = 0--免费游戏赢取金币
+removeNumber = 0 --消除次数
+nowRemoveNumber = 1 --当前消除第几轮
+playResponseList = nil --当局所有信息
+isJoinGame = false--是否已经进入游戏(用于断线重连)
+local  ff = false
+GameState = 
+{
+    NOSTART = 0, --未开始游戏
+    START = 1 --开始游戏
+}
+
+ZhuandongState = 
+{
+    beginZhuandong = 0, --准备开始转动
+    endZhuandong = 1, --准备停止转动
+    backZhuandong = 2, --开始回弹
+    stopZhuandong = 3 --转动结束
+}
+zhuandong = false --转动是否开始
+isfreegame = false --是否是免费
+isAudo = false --是否是自动
+isJieSuanGunDong = false --结算滚动动画
+jiesuanNowTime = 0 --记录结算滚动动画当前时间
+isDajiang = false --是否大奖
+freegameNumber = 0 --免费次数
+
+BeforState=nil --上局状态
+BeforBet=nil--上局压注
+
+totalMultiple = 0 --游戏倍数
+isFreePanle = false --是否不消除元素只播放动画
+
+freegameBG = nil --免费游戏背景
+putonggameBG = nil --普通游戏背景
+imagefreegame1 = nil --进入免费游戏动画
+imagefreegame2 = nil --退出免费游戏动画
+
+gameHight = 4 --高
+gameWidth = 5 --宽
+speed=35	--转动速度
+EndMovePos = nil --元素销毁位置
+SpringbackPos = nil --开始回弹位置
+upAndDownInterval = nil --元素上下间隔
+leftAndRightInterval = nil --元素左右间隔
+--间隔的三个基准点
+upPos = nil
+inPos = nil
+rightPos = nil
+--元素的5个父节点
+local gameItem1 = nil
+local gameItem2 = nil
+local gameItem3 = nil
+local gameItem4 = nil
+local gameItem5 = nil
+--每列运动状态（是否该赋值结果）
+local itemStop1 = nil
+local itemStop2 = nil
+local itemStop3 = nil
+local itemStop4 = nil
+local itemStop5 = nil
+
+local ZhuandongTime = 2 --转动时间
+local IsClick=false
+
+--每列结果
+local gameResults1 = {} 
+local gameResults2 = {}
+local gameResults3 = {}
+local gameResults4 = {}
+local gameResults5 = {}
+local gameResults6 = {}
+--有消除时需要补偿的元素
+local  compensationModel = {}
+
+--需要消除的格子
+local gameDeleteResults = {}
+--元素消除动画缓存
+local gameDeleteYuansu = {}
+local gameDeleteYuansu2 = {}
+local gameDeleteYuansu3 = {}
+local Isxiaochu=nil
+local IconResult={}
+local WildItem={}
+local WildItem2={}
+local heartTimer1=nil
+local heartTimer2=nil
+local heartTimer3=nil
+local num=100
+
+My = 
+{
+    uiobj = nil,
+    nowgameState = GameState.NOSTART, --当前游戏状态
+    
+    btnQuitGame, --退出游戏
+    btnHelp, --帮助
+    btnVoiceSwitch, --声音开关
+    btnAdd, --加注
+    btnSubtract, --减注
+    btnMaxbet, --最大下注
+    btnAudoGame, --自动
+    btnCancelAudio, --取消自动
+    btnBeginGame, --旋转
+    btnImmediatelyStop,--立即停止转动
+
+    textPlayerMoney = nil, --玩家金钱
+    textNowBetMoney = nil, --当前下注金额
+    textRewardMoney = nil, --中奖金额
+    textDajiangMoney = nil,--中大奖金额
+    textFreeNumber = nil, --免费次数
+    objDajiang = nil,--大奖
+    objPutongjiang = nil,--普通奖
+
+    imageFanbeicishu = {}, --免费游戏中奖励倍数
+    imageAddZhezhao = nil, --下注按钮遮罩
+    imageMinusZhezhao = nil, --减注按钮遮罩
+    imageMaxBetZhezhao = nil, --最大下注按钮遮罩
+    imageAudoZhezhao = nil, --自动旋转按钮遮罩
+    imageBegingameZhezhao = nil, --旋转按钮遮罩
+    imageQuitGameZhezhao = nil, --退出游戏按钮遮罩
+    wildeff1=nil,
+    wildeff2=nil,
+    wildeff3=nil,
+    wildeff4=nil,
+    wildeff5=nil,
+    nowZhuandongState = ZhuandongState.beginZhuandong,
+
+    --游戏元素model 
+    gameModelList1 = {},
+    gameModelList2 = {},
+    gameModelList3 = {},
+    gameModelList4 = {},
+    gameModelList5 = {},
+
+    imagefreegamelianji = {} ,--免费游戏连击
+Quit,
+ ok,
+no
+}
+
+--获取子物体
+function GetChild(node)
+    local obj = nil
+    obj = My.uiobj.transform:Find(node)
+    if not obj then
+        print("找不到对象")
+        return 
+    end
+    return obj
+end
+
+--获取物体上面的组件（名字，类型）
+function SubGet(node,ctype)
+    if Factory.isString(node) then
+        node = GetChild(node)
+    end
+    return node.gameObject:GetComponent(ctype)
+end
+
+function PlayBgMusic(name)
+    GlobalControl.PlayBGMusic(name)
+end
+
+function PlayAudioClip(name)
+    GlobalControl.PlayEffectMusic(name)
+end
+
+function StopBgMusic()
+    GlobalControl.StopBgMusic()
+end
+
+function StopAllAudioClip()
+    GlobalControl.StopEffectMusic()
+end
+
+function StopAudioClip(name)
+    AudioManager:CloseEffectAudio(name)
+end
+--初始化
+function GetViewObj(msgData)
+    My.uiobj = Factory.LoadObjectFromBundle(gameName,bundleName,editorPath..prefabName)
+    if(My.uiobj) then
+        Factory.SetToParent(My.uiobj,UIpanel)
+        My.uiobj.name=prefabName
+        print("/////////////")
+        My.btnQuitGame = GetChild("ImageTop/ButtonQuitGame").gameObject
+        My.btnHelp = GetChild("ImageDown/ButtonHelp").gameObject
+        My.btnVoiceSwitch = GetChild("ImageTop/ButtonSound").gameObject
+        My.btnAdd = GetChild("ImageDown/ButtonAdd").gameObject
+        My.btnSubtract = GetChild("ImageDown/ButtonMinus").gameObject
+        My.btnMaxbet = GetChild("ImageDown/ButtonMaxBet").gameObject
+        My.btnAudoGame = GetChild("ImageDown/ButtonAuto").gameObject
+        My.btnCancelAudio = GetChild("ImageDown/ButtonCancelAuto").gameObject
+        My.btnBeginGame = GetChild("ImageDown/ButtonBeginGame").gameObject
+        My.btnImmediatelyStop = GetChild("ImageDown/ButtonStopGame").gameObject
+        My.objDajiang = GetChild("ImageDown/dajiang").gameObject
+        My.objPutongjiang = GetChild("ImageDown/putongjiang").gameObject
+        My.Quit=GetChild("Quit").gameObject
+        Factory.AddClick(GetChild("Quit/yes"),QuitGame)
+        Factory.AddClick(GetChild("Quit/no"),function()  My.Quit:SetActive(false)  end )
+
+        imagefreegame1 = GetChild("GamePanel/bing").gameObject
+        imagefreegame2 = GetChild("GamePanel/bingsui").gameObject
+        freegameBG = GetChild("ImageDown/freegame").gameObject
+        putonggameBG = GetChild("ImageDown/logo").gameObject
+
+        EndMovePos = GetChild("ImageDown/Mask/EndMovePos").gameObject.transform
+        SpringbackPos = GetChild("ImageDown/Mask/SpringbackPos").gameObject.transform
+        gameItem1 = GetChild("ImageDown/Mask/GameItem1").gameObject
+        gameItem2 = GetChild("ImageDown/Mask/GameItem2").gameObject
+        gameItem3 = GetChild("ImageDown/Mask/GameItem3").gameObject
+        gameItem4 = GetChild("ImageDown/Mask/GameItem4").gameObject
+        gameItem5 = GetChild("ImageDown/Mask/GameItem5").gameObject
+
+        My.imageAddZhezhao = GetChild("ImageDown/AddZhezhao").gameObject
+        My.imageMinusZhezhao = GetChild("ImageDown/MinusZhezhao").gameObject
+        My.imageMaxBetZhezhao = GetChild("ImageDown/MaxBetZhezhao").gameObject
+        My.imageAudoZhezhao = GetChild("ImageDown/AutoZhezhao").gameObject
+        My.imageBegingameZhezhao = GetChild("ImageDown/BeginGameZhezhao").gameObject
+        My.imageQuitGameZhezhao = GetChild("ImageTop/QuitGameZhezhao").gameObject
+
+        upPos = GetChild("ImageDown/Mask/up").gameObject
+        inPos = GetChild("ImageDown/Mask/in").gameObject
+        rightPos = GetChild("ImageDown/Mask/right").gameObject
+
+        My.textPlayerMoney = SubGet("ImageTop/Coin/TextNumber","Text")
+        My.textRewardMoney = SubGet("ImageDown/putongjiang/TextGetScore","Text")
+        My.textNowBetMoney = SubGet("ImageDown/TextOutScore","Text")
+        My.textDajiangMoney = SubGet("ImageDown/dajiang/Textdajiang","Text")
+        My.textFreeNumber = SubGet("ImageDown/freegame/TextFreeNumber","Text")
+        My.wildeff1=GetChild("eff1").gameObject
+        My.wildeff2=GetChild("eff2").gameObject
+        My.wildeff3=GetChild("eff3").gameObject
+        My.wildeff4=GetChild("eff4").gameObject
+        My.wildeff5=GetChild("eff5").gameObject
+
+        print("****************//////")
+        My.textRewardMoney.text = "0"
+        My.textDajiangMoney.text = "0"
+
+        local obj = nil
+        for i = 1, 5 do
+            obj = GetChild("ImageDown/freegame/"..i).gameObject
+            table.insert(My.imagefreegamelianji, obj)
+        end
+
+        My.imageAddZhezhao:SetActive(false)
+        My.imageMinusZhezhao:SetActive(false)
+        My.imageMaxBetZhezhao:SetActive(false)
+        My.imageAudoZhezhao:SetActive(false)
+        My.imageBegingameZhezhao:SetActive(false)
+        My.imageQuitGameZhezhao:SetActive(false)
+        My.btnImmediatelyStop:SetActive(false)
+        My.btnCancelAudio:SetActive(false)
+
+
+        --按钮事件
+        Factory.AddClick(My.btnQuitGame,OnClickBQuitGame)
+        Factory.AddClick(My.btnHelp,OnClickHelp)
+        Factory.AddClick(My.btnVoiceSwitch,OnClickMiusic)
+        Factory.AddClick(My.btnAdd,function ()
+            OnClickAdd(true)
+        end)
+        Factory.AddClick(My.btnSubtract,function ()
+            OnClickAdd(false)
+        end)
+        Factory.AddClick(My.btnMaxbet,OnClickMaxbet)
+        Factory.AddClick(My.btnAudoGame,OnClickAudo)
+        Factory.AddClick(My.btnBeginGame,OnClickBeginGame)
+        Factory.AddClick(My.btnCancelAudio,OnClickCancelAudo)
+        --Factory.AddClick(My.btnImmediatelyStop,OnClickStopGame)
+
+        --获取元素上下、左右间隔
+        upAndDownInterval = upPos.transform.position.y - inPos.transform.position.y
+        leftAndRightInterval = rightPos.transform.position.x - inPos.transform.position.x
+
+        --设置初始游戏元素
+        math.randomseed(tostring(os.time()):reverse():sub(1, 6))--设置随机数种子
+        for i = 1,gameWidth do
+            for j = 1, gameHight do
+
+                local obj = Factory.LoadObjectFromBundle(gameName,bundleName,"model").gameObject:GetComponent("Image")
+
+                if j == gameHight then
+                    local number = math.random(0,10)
+                    obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon",number)
+                else
+                    obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon","9")
+                end
+
+                if i == 1 then
+                    obj.gameObject.transform.parent = gameItem1.transform
+                elseif i == 2 then
+                    obj.gameObject.transform.parent = gameItem2.transform
+                elseif i == 3 then
+                    obj.gameObject.transform.parent = gameItem3.transform
+                elseif i == 4 then
+                    obj.gameObject.transform.parent = gameItem4.transform
+                else
+                    obj.gameObject.transform.parent = gameItem5.transform
+                end
+
+                if i == 1 then
+                    table.insert(My.gameModelList1,obj)
+                elseif i == 2 then
+                    table.insert(My.gameModelList2,obj)
+                elseif i == 3 then
+                    table.insert(My.gameModelList3,obj)
+                elseif i == 4 then
+                    table.insert(My.gameModelList4,obj)
+                else
+                    table.insert(My.gameModelList5,obj)
+                end
+                obj.gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval * (i - 1),inPos.transform.position.y + upAndDownInterval*(j - 1),inPos.transform.position.z)
+                obj.gameObject.transform.localScale = Vector3(1,1,1)
+            end
+        end
+
+        modelInterval = My.gameModelList1[2].gameObject.transform.position.y - My.gameModelList1[1].gameObject.transform.position.y
+
+        itemStop1 = ZhuandongState.stopZhuandong
+        itemStop2 = ZhuandongState.stopZhuandong
+        itemStop3 = ZhuandongState.stopZhuandong
+        itemStop4 = ZhuandongState.stopZhuandong
+        itemStop5 = ZhuandongState.stopZhuandong
+
+        --音乐管理器
+        AudioManager=SubGet(My.uiobj,"AudioManager")
+
+
+        --免费相关
+        My.textFreeNumber = SubGet("ImageDown/freegame/TextFreeNumber","Text")
+
+        --大奖特效相关
+
+        PlayBgMusic("Normal_Bgm")
+        UpdateBeat:Add(Update,self)
+
+        Init(msgData)
+
+    end
+
+end
+
+--创建界面
+function OnCreate()
+    BQTPNetWork.ConnectServer( function()
+       BQTPRequest.JoinGameReq()
+    end)
+end
+
+
+
+function Start(msgData)
+    print("进入游戏返回")
+    GlobalControl.InitMusicVolume()
+    GlobalControl.AddAllAudios("BQTP","Sounds")
+    GlobalControl.EnterGame(BQTPHeadRequire.LoadedPath())
+    -- BQTPData.gameName = GameManager.JoinGame.gameName
+    BQTPData.stakeArrs = msgData.roomVo.betArrs
+    BQTPData.userProfileVo=msgData.userProfileVo
+    BQTPData.winFreeVo=msgData.winFreeVo
+    BQTPData.gameName="BQTP"
+    My.nowgameState = GameState.START
+    freegameNumber = BQTPData.winFreeVo.currentNumber
+
+    if msgData.winFreeVo.inRoom and msgData.winFreeVo.inRoom~="" then
+        BeforState= Json.decode(msgData.winFreeVo.inRoom).change--上局游戏状态
+    else
+        BeforState=false
+    end
+    BeforBet=msgData.userProfileVo.lastBetNumber
+    print("加载游戏完成//////")
+    --print("上局游戏状态"..BeforState)
+    zhuandong = false
+    isfreegame = false
+    isAudo = false
+    isDajiang = false
+    isJieSuanGunDong = false
+
+    if My.uiobj == nil then
+        gameName=BQTPData.gameName
+        GetViewObj(msgData)
+        if freegameNumber>0 then
+            My.imageMinusZhezhao.gameObject:SetActive(true)
+            My.imageAddZhezhao.gameObject:SetActive(true)
+            My.imageMaxBetZhezhao.gameObject:SetActive(true)
+            My.imageQuitGameZhezhao.gameObject:SetActive(true)
+        end
+    end
+    if My.uiobj then
+        My.uiobj:SetActive(true)
+        Init(msgData)
+    end
+    return My.uiobj
+end
+
+--关闭界面
+function OnClose()
+    if My.uiobj then
+        Factory.DestroyObject(My.uiobj)
+    end
+    My.uiobj = nil
+end
+
+--刚进入游戏初始化用户信息
+function Init(msgData)
+    print("重新连接++++++++++++++++++++++++++")
+    if NetFly then
+        print("重连转动////////////////////")
+        IsClick=false
+        BQTPRequest.StartPlayReq(outCoin)
+    end
+
+    if not isJoinGame then
+        My.textPlayerMoney.text = msgData.userProfileVo.goldNumber
+        My.nowgameState = GameState.NOSTART
+        isJoinGame = true
+        BetInit()
+        OtherButtonInit()
+        Reconnect(msgData)
+    else
+        if isAudo then
+            if My.nowgameState == GameState.NOSTART then
+                isAudo = false
+                ff = false
+                My.btnBeginGame:SetActive(true)
+                My.btnImmediatelyStop:SetActive(false)
+                My.imageBegingameZhezhao:SetActive(false)
+                My.imageMinusZhezhao.gameObject:SetActive(false)
+                My.imageAddZhezhao.gameObject:SetActive(false)
+                My.imageMaxBetZhezhao.gameObject:SetActive(false)
+                My.imageAudoZhezhao:SetActive(false)
+                My.btnCancelAudio:SetActive(false)
+                My.btnAudoGame:SetActive(true)
+                my.imageQuitGameZhezhao:SetActive(false)
+                BetInit()
+            end
+        end
+        if isfreegame then
+            if My.nowgameState == GameState.NOSTART then
+                Factory.DelayRun(0.5,function ()
+                    OnClickBeginGame()
+                end)
+            end
+        end
+    end
+end
+local  a = 0
+function Reconnect (msgData)
+    a = a +1
+    if a == 1 then
+        if freegameNumber >0 then
+            --curFreeTopIndex = BQTPData.winFreeVo.freeRate
+            --My.textNowBetMoney.text=
+            BetInit()
+            OtherButtonInit()
+            freegameBG.gameObject:SetActive(true)
+            putonggameBG.gameObject:SetActive(false)
+            imagefreegame1.gameObject:SetActive(true)
+            imagefreegame2.gameObject:SetActive(false)
+            My.textFreeNumber.text = freegameNumber
+            isfreegame = true
+            FreeGamelianji(0)
+            My.imageAudoZhezhao:SetActive(true)
+            Factory.DelayRun(0.2,function ()
+                OnClickBeginGame()
+            end)
+        elseif BeforState then
+            My.imageBegingameZhezhao:SetActive(true)
+            My.imageMinusZhezhao.gameObject:SetActive(true)
+            My.imageAddZhezhao.gameObject:SetActive(true)
+            My.imageMaxBetZhezhao.gameObject:SetActive(true)
+            if not ff then
+                My.imageAudoZhezhao:SetActive(true)
+            end
+            My.textDajiangMoney.text = "0"
+            My.textRewardMoney.text = "0"
+            rewardMoney = 0
+            IsClick=true
+            Factory.DelayRun(0.2,function ()
+                OnClickBeginGame()
+            end)
+        end
+        if BeforState then
+        end
+
+        for	i=1,#BQTPData.stakeArrs do
+            if BQTPData.stakeArrs[i]==BQTPData.userProfileVo.lastBetNumber  then
+                My.textNowBetMoney.text = BQTPData.stakeArrs[i]
+                nowBetNumber = i
+            end
+        end
+    end
+end
+
+function Update()
+    if zhuandong then
+        if itemStop1 == ZhuandongState.beginZhuandong then
+            for i=1, #My.gameModelList1 do
+                My.gameModelList1[i].gameObject.transform:Translate(Vector3(0,-1,0) * Time.deltaTime * speed)
+            end
+
+            if My.gameModelList1[1].gameObject.transform.position.y <= EndMovePos.position.y then
+                Factory.DestroyObject(My.gameModelList1[1])
+                table.remove(My.gameModelList1, 1) 
+                local number = math.random(0,10)
+                local obj = Factory.LoadObjectFromBundle(gameName,bundleName,"model").gameObject:GetComponent("Image")
+                obj.gameObject.transform.parent = gameItem1.transform
+                obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon",number)
+                obj.gameObject.transform.position =  Vector3(inPos.transform.position.x,My.gameModelList1[3].gameObject.transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                obj.gameObject.transform.localScale = Vector3(1,1,1)
+                table.insert(My.gameModelList1,obj)
+            end
+        elseif itemStop1 == ZhuandongState.endZhuandong then
+            for i=1, #My.gameModelList1 do
+                My.gameModelList1[i].gameObject.transform:Translate(Vector3(0,-1,0) * Time.deltaTime * speed)
+            end
+            if #gameResults1 == 0 then
+                if My.gameModelList1[1].gameObject.transform.position.y <= SpringbackPos.position.y then
+                    itemStop1 = ZhuandongState.backZhuandong
+                end
+            else
+                if My.gameModelList1[1].gameObject.transform.position.y <= EndMovePos.position.y then
+                    Factory.DestroyObject(My.gameModelList1[1])
+                    table.remove(My.gameModelList1, 1) 
+                    local number = gameResults1[1]
+                    table.remove(gameResults1, 1)
+                    local obj = Factory.LoadObjectFromBundle(gameName,bundleName,"model").gameObject:GetComponent("Image")
+                    obj.gameObject.transform.parent = gameItem1.transform
+                    obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon", number)
+                    obj.gameObject.transform.position =  Vector3(inPos.transform.position.x,My.gameModelList1[3].gameObject.transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                    obj.gameObject.transform.localScale = Vector3(1,1,1)
+                    table.insert(My.gameModelList1,obj)
+                end
+            end  
+        elseif itemStop1 == ZhuandongState.backZhuandong then
+            Springback(1)
+        end
+
+        if itemStop2 == ZhuandongState.beginZhuandong then
+            for i=1, #My.gameModelList2 do
+                My.gameModelList2[i].gameObject.transform:Translate(Vector3(0,-1,0) * Time.deltaTime * speed)
+            end
+
+            if My.gameModelList2[1].gameObject.transform.position.y <= EndMovePos.position.y then
+                Factory.DestroyObject(My.gameModelList2[1])
+                table.remove(My.gameModelList2, 1) 
+                local number = math.random(0,10)
+                local obj = Factory.LoadObjectFromBundle(gameName,bundleName,"model").gameObject:GetComponent("Image")
+                obj.gameObject.transform.parent = gameItem2.transform
+                obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon",number)
+                obj.gameObject.transform.position =  Vector3(inPos.transform.position.x + leftAndRightInterval,My.gameModelList2[3].gameObject.transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                obj.gameObject.transform.localScale = Vector3(1,1,1)
+                table.insert(My.gameModelList2,obj)
+            end
+        elseif itemStop2 == ZhuandongState.endZhuandong then
+            for i=1, #My.gameModelList2 do
+                My.gameModelList2[i].gameObject.transform:Translate(Vector3(0,-1,0) * Time.deltaTime * speed)
+            end
+            if #gameResults2 == 0 then
+                if My.gameModelList2[1].gameObject.transform.position.y <= SpringbackPos.position.y then
+                    itemStop2 = ZhuandongState.backZhuandong
+                end
+            else
+                if My.gameModelList2[1].gameObject.transform.position.y <= EndMovePos.position.y then
+                    Factory.DestroyObject(My.gameModelList2[1])
+                    table.remove(My.gameModelList2, 1) 
+                    local number = nil
+                    number = gameResults2[1]
+
+                    table.remove(gameResults2, 1)
+                    local obj = Factory.LoadObjectFromBundle(gameName,bundleName,"model").gameObject:GetComponent("Image")
+                    obj.gameObject.transform.parent = gameItem2.transform
+                    obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon",number)
+                    obj.gameObject.transform.position =  Vector3(inPos.transform.position.x + leftAndRightInterval,My.gameModelList2[3].gameObject.transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                    obj.gameObject.transform.localScale = Vector3(1,1,1)
+                    table.insert(My.gameModelList2,obj)
+                end
+            end
+        elseif itemStop2 == ZhuandongState.backZhuandong then
+            Springback(2)
+        end
+
+        if itemStop3 == ZhuandongState.beginZhuandong then
+            for i=1, #My.gameModelList3 do
+                My.gameModelList3[i].gameObject.transform:Translate(Vector3(0,-1,0) * Time.deltaTime * speed)
+            end
+
+            if My.gameModelList3[1].gameObject.transform.position.y <= EndMovePos.position.y then
+                Factory.DestroyObject(My.gameModelList3[1])
+                table.remove(My.gameModelList3, 1) 
+                local number = math.random(0,10)
+                local obj = Factory.LoadObjectFromBundle(gameName,bundleName,"model").gameObject:GetComponent("Image")
+                obj.gameObject.transform.parent = gameItem3.transform
+                obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon",number)
+                obj.gameObject.transform.position =  Vector3(inPos.transform.position.x + leftAndRightInterval*2,My.gameModelList3[3].gameObject.transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                obj.gameObject.transform.localScale = Vector3(1,1,1)
+                table.insert(My.gameModelList3,obj)
+            end
+        elseif itemStop3 == ZhuandongState.endZhuandong then
+            for i=1, #My.gameModelList3 do
+                My.gameModelList3[i].gameObject.transform:Translate(Vector3(0,-1,0) * Time.deltaTime * speed)
+            end
+            if #gameResults3 == 0 then
+                if My.gameModelList3[1].gameObject.transform.position.y <= SpringbackPos.position.y then
+                    itemStop3 = ZhuandongState.backZhuandong
+                end
+            else
+                if My.gameModelList3[1].gameObject.transform.position.y <= EndMovePos.position.y then
+                    Factory.DestroyObject(My.gameModelList3[1])
+                    table.remove(My.gameModelList3, 1) 
+                    local number = nil
+                    number = gameResults3[1]
+                    table.remove(gameResults3, 1)
+                    local obj = Factory.LoadObjectFromBundle(gameName,bundleName,"model").gameObject:GetComponent("Image")
+                    obj.gameObject.transform.parent = gameItem3.transform
+                    obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon",number)
+                    obj.gameObject.transform.position =  Vector3(inPos.transform.position.x+ leftAndRightInterval*2,My.gameModelList3[3].gameObject.transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                    obj.gameObject.transform.localScale = Vector3(1,1,1)
+                    table.insert(My.gameModelList3,obj)
+                end
+            end
+        elseif itemStop3 == ZhuandongState.backZhuandong then
+            Springback(3)
+        end
+
+        if itemStop4 == ZhuandongState.beginZhuandong then
+            for i=1, #My.gameModelList4 do
+                My.gameModelList4[i].gameObject.transform:Translate(Vector3(0,-1,0) * Time.deltaTime * speed)
+            end
+            if My.gameModelList4[1].gameObject.transform.position.y <= EndMovePos.position.y then
+                Factory.DestroyObject(My.gameModelList4[1])
+                table.remove(My.gameModelList4, 1) 
+                local number = math.random(0,10)
+                local obj = Factory.LoadObjectFromBundle(gameName,bundleName,"model").gameObject:GetComponent("Image")
+                obj.gameObject.transform.parent = gameItem4.transform
+                obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon",number)
+                obj.gameObject.transform.position =  Vector3(inPos.transform.position.x+ leftAndRightInterval*3,My.gameModelList4[3].gameObject.transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                obj.gameObject.transform.localScale = Vector3(1,1,1)
+                table.insert(My.gameModelList4,obj)
+            end
+        elseif itemStop4 == ZhuandongState.endZhuandong then
+            for i=1, #My.gameModelList4 do
+                My.gameModelList4[i].gameObject.transform:Translate(Vector3(0,-1,0) * Time.deltaTime * speed)
+            end
+            if #gameResults4 == 0 then
+                if My.gameModelList4[1].gameObject.transform.position.y <= SpringbackPos.position.y then
+                    itemStop4 = ZhuandongState.backZhuandong
+                end
+            else
+                if My.gameModelList4[1].gameObject.transform.position.y <= EndMovePos.position.y then
+                    Factory.DestroyObject(My.gameModelList4[1])
+                    table.remove(My.gameModelList4, 1) 
+                    local number = nil
+                    number = gameResults4[1]
+                    table.remove(gameResults4, 1)
+                    local obj = Factory.LoadObjectFromBundle(gameName,bundleName,"model").gameObject:GetComponent("Image")
+                    obj.gameObject.transform.parent = gameItem4.transform
+                    obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon",number)
+                    obj.gameObject.transform.position =  Vector3(inPos.transform.position.x+ leftAndRightInterval*3,My.gameModelList4[3].gameObject.transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                    obj.gameObject.transform.localScale = Vector3(1,1,1)
+                    table.insert(My.gameModelList4,obj)
+                end
+            end
+        elseif itemStop4 == ZhuandongState.backZhuandong then
+            Springback(4)
+        end
+
+        if itemStop5 == ZhuandongState.beginZhuandong then
+            for i=1, #My.gameModelList5 do
+                My.gameModelList5[i].gameObject.transform:Translate(Vector3(0,-1,0) * Time.deltaTime * speed)
+            end
+
+            if My.gameModelList5[1].gameObject.transform.position.y <= EndMovePos.position.y then
+                Factory.DestroyObject(My.gameModelList5[1])
+                table.remove(My.gameModelList5, 1) 
+                local number = math.random(0,10)
+                local obj = Factory.LoadObjectFromBundle(gameName,bundleName,"model").gameObject:GetComponent("Image")
+                obj.gameObject.transform.parent = gameItem5.transform
+                obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon",number)
+                obj.gameObject.transform.position =  Vector3(inPos.transform.position.x+ leftAndRightInterval*4,My.gameModelList5[3].gameObject.transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                obj.gameObject.transform.localScale = Vector3(1,1,1)
+                table.insert(My.gameModelList5,obj)
+            end
+        elseif itemStop5 == ZhuandongState.endZhuandong then
+            for i=1, #My.gameModelList5 do
+                My.gameModelList5[i].gameObject.transform:Translate(Vector3(0,-1,0) * Time.deltaTime * speed)
+            end
+            if #gameResults5 == 0 then
+                if My.gameModelList5[1].gameObject.transform.position.y <= SpringbackPos.position.y then
+                    itemStop5 = ZhuandongState.backZhuandong
+                end
+            else
+                if My.gameModelList5[1].gameObject.transform.position.y <= EndMovePos.position.y then
+                    Factory.DestroyObject(My.gameModelList5[1])
+                    table.remove(My.gameModelList5, 1) 
+                    local number = nil
+                    number = gameResults5[1]
+                    table.remove(gameResults5, 1)
+                    local obj = Factory.LoadObjectFromBundle(gameName,bundleName,"model").gameObject:GetComponent("Image")
+                    obj.gameObject.transform.parent = gameItem5.transform
+                    obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon",number)
+                    obj.gameObject.transform.position =  Vector3(inPos.transform.position.x+ leftAndRightInterval*4,My.gameModelList5[3].gameObject.transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                    obj.gameObject.transform.localScale = Vector3(1,1,1)
+                    table.insert(My.gameModelList5,obj)
+                end
+            end
+        elseif itemStop5 == ZhuandongState.backZhuandong then
+            Springback(5)
+        end
+    end
+
+    if isJieSuanGunDong then--结算滚动
+        local str = 0
+        if My.objPutongjiang.gameObject.activeSelf then
+            if isfreegame then
+                str = math.floor( Mathf.Lerp(freerewardMoney,freerewardMoney + rewardMoney,(Time.time - jiesuanNowTime)/1))
+            else
+                str = math.floor( Mathf.Lerp(0,rewardMoney,(Time.time - jiesuanNowTime)/1))
+            end
+            if str~=0 then
+                My.textRewardMoney.text = str
+            end
+
+        end
+        if My.objDajiang.gameObject.activeSelf then
+            if isfreegame then
+                str = math.floor( Mathf.Lerp(freerewardMoney,freerewardMoney + rewardMoney,(Time.time - jiesuanNowTime)/2.5) )
+                if str~=0 then
+                    My.textRewardMoney.text = str
+                end
+            else
+                str = math.floor( Mathf.Lerp(0,rewardMoney,(Time.time - jiesuanNowTime)/2.5) ) 
+            end
+            My.textDajiangMoney.text = str
+        end
+        if isfreegame then
+            if str >= rewardMoney + freerewardMoney then
+                isJieSuanGunDong = false
+               StopAllAudioClip("BigWin")
+                Factory.DelayRun(0.5,function ()
+                    if My.objDajiang.gameObject.activeSelf then
+                        My.objDajiang.gameObject:SetActive(false)
+                        My.objPutongjiang.gameObject:SetActive(true)
+                    end
+                    --My.textRewardMoney.text =tonumber(My.textRewardMoney.text) + rewardMoney
+                    local tempScore=tonumber(My.textPlayerMoney.text)
+                    My.textPlayerMoney.text=tempScore + rewardMoney
+                    if  isfreegame then
+                        DeleteModel()
+                    else
+
+                    end
+
+                end)
+            end
+        else
+            if str >= rewardMoney then
+                isJieSuanGunDong = false
+                StopAllAudioClip("BigWin")
+                Factory.DelayRun(0.5,function ()
+                    if My.objDajiang.gameObject.activeSelf then
+                        My.objDajiang.gameObject:SetActive(false)
+                        My.objPutongjiang.gameObject:SetActive(true)
+                        My.textRewardMoney.text = rewardMoney
+                    end
+                    local tempScore=tonumber(My.textPlayerMoney.text)
+                    tempScore = tempScore + rewardMoney   
+                    My.textPlayerMoney.text=tempScore
+                    if freegameNumber<=0 and not isfreegame then
+                        DeleteModel()
+                    else
+                        print(#gameDeleteYuansu.."+++++"..#gameDeleteYuansu2.."+++++"..#gameDeleteYuansu3)
+                        Factory.DelayRun(1.5,function ()
+                            for j = 1, #gameDeleteYuansu2 do
+                                Factory.DestroyObject(gameDeleteYuansu2[j].gameObject)
+                            end
+                            gameDeleteYuansu2=  {}
+                            for k = 1, #gameDeleteYuansu do
+                                Factory.DestroyObject(gameDeleteYuansu[k].gameObject)
+                            end
+                            gameDeleteYuansu= {}
+
+                            for i= 1, #gameDeleteYuansu3 do
+                               gameDeleteYuansu3[i].gameObject:SetActive(true)
+                            end
+                            gameDeleteYuansu3= {}
+                            --补齐
+                            if gameItem1.transform.childCount<4 or gameItem2.transform.childCount<4 or gameItem3.transform.childCount<4 or gameItem4.transform.childCount<4 or gameItem5.transform.childCount<4 then
+                                AddGameModel ()
+                            end
+                                print("进入免费")
+                                isfreegame = true
+                                My.imageAudoZhezhao:SetActive(true)
+                                imagefreegame1.gameObject:SetActive(true)
+                                imagefreegame2.gameObject:SetActive(false)
+                                imagefreegame1.gameObject:GetComponent("UnityArmatureComponent").animation:GotoAndPlayByFrame("Sprite", 0,1)
+                                Factory.DelayRun(0.2,function ()
+                                    freegameBG.gameObject:SetActive(true)
+                                    My.textFreeNumber.text = freegameNumber
+                                    putonggameBG.gameObject:SetActive(false)
+                                    FreeGamelianji(0)
+                                    My.nowgameState = GameState.NOSTART
+                                    My.textRewardMoney.text = "0"
+                                    Factory.DelayRun(0.3,function ()
+                                        OnClickBeginGame()
+                                    end)
+                                end)
+
+                        end )
+                    end
+                end)
+            end
+        end
+
+        
+    end
+end
+
+--退出游戏--退出至选房间界面
+function ExitGame()
+    ClearGameState()
+    --UILobby.ReConnectRoom()
+end
+
+function ClearGameState()
+    UpdateBeat:Remove(Update, self)
+    Factory.ClearAudioClip()
+    if My.uiObj then
+        Factory.DestroyObject(My.uiObj)
+    end
+    My.uiObj = nil
+end
+
+--点击返回(退出游戏操作，需要有退出弹窗的)
+function OnClickBQuitGame()
+   PlayAudioClip("Normal_Item")
+    if My.nowgameState ~= GameState.NOSTART then
+        return
+    end
+    My.Quit:SetActive(true)
+    print("弹出退出界面")
+    --UIManager.ShowMessageBox("返回到房间？",function ()
+	--	BQTPRequest.QuitGameReSq()--请求退出游戏
+		--ExitGame()
+	--end,false)
+end
+
+function QuitGame()
+    BQTPRequest.QuitGameReSq()
+end
+
+--押注按钮
+function OnClickAdd(add)
+    PlayAudioClip("Normal_Addbet")
+    if add then
+        if nowBetNumber < 10 then
+            nowBetNumber = nowBetNumber + 1
+            My.textNowBetMoney.text = BQTPData.stakeArrs[nowBetNumber]
+        end
+    else
+        if nowBetNumber > 1 then
+            nowBetNumber = nowBetNumber - 1
+            My.textNowBetMoney.text = BQTPData.stakeArrs[nowBetNumber]
+        end
+    end
+    BetInit()
+end
+
+--押注按钮相关
+function BetInit()
+    if nowBetNumber == 1 or zhuandong or  isfreegame or isAudo then
+        My.imageMinusZhezhao.gameObject:SetActive(true)
+    else
+        My.imageMinusZhezhao.gameObject:SetActive(false)
+    end
+    if nowBetNumber == 10 or zhuandong or isfreegame or isAudo then
+        My.imageAddZhezhao.gameObject:SetActive(true)
+    else
+        My.imageAddZhezhao.gameObject:SetActive(false)
+    end
+end
+--其他按钮遮罩
+function OtherButtonInit()
+    if zhuandong or isfreegame or isAudo then
+        My.imageMaxBetZhezhao.gameObject:SetActive(true)
+        My.imageQuitGameZhezhao.gameObject:SetActive(true)
+    else
+        My.imageMaxBetZhezhao.gameObject:SetActive(false)
+        My.imageQuitGameZhezhao.gameObject:SetActive(false)
+    end
+end
+
+--点击帮助
+function OnClickHelp()
+    PlayAudioClip("Normal_Item")
+    UIManager.Open("BQTPHelp")
+end
+
+--音乐按钮
+function OnClickMiusic()
+    if My.btnVoiceSwitch.gameObject:GetComponent("Image").sprite.name == "Btn_yinliang_kai" then
+        GlobalControl.SetBGMusicValue(0)
+        GlobalControl.SetEFMusicValue(0)
+        My.btnVoiceSwitch.gameObject:GetComponent("Image").sprite = Factory.LoadSpriteFromBundle(gameName,"Image","Btn_yinliang_guan")
+    else
+        GlobalControl.SetBGMusicValue(1)
+        GlobalControl.SetEFMusicValue(1)
+        My.btnVoiceSwitch.gameObject:GetComponent("Image").sprite = Factory.LoadSpriteFromBundle(gameName,"Image","Btn_yinliang_kai")
+    end
+    
+end
+
+--自动按钮
+function OnClickAudo()
+    if not ff then
+        isAudo = true
+        ff = true
+       PlayAudioClip("Normal_AutoSpin")
+        My.imageAudoZhezhao:SetActive(true)
+        My.imageBegingameZhezhao:SetActive(true)
+        My.imageMinusZhezhao.gameObject:SetActive(true)
+        My.imageAddZhezhao.gameObject:SetActive(true)
+        My.imageMaxBetZhezhao.gameObject:SetActive(true)
+        if My.nowgameState == GameState.NOSTART then
+            Factory.DelayRun(0.5,OnClickBeginGame)
+        end
+    end
+    
+end
+
+--取消自动按钮
+function OnClickCancelAudo()
+    if ff then
+        isAudo = false
+        ff = false
+        PlayAudioClip("Normal_AutoSpin")
+        My.imageAudoZhezhao:SetActive(true)
+        My.btnCancelAudio:SetActive(false)
+        My.btnAudoGame:SetActive(true)
+    end
+end
+
+
+--点击开始按钮 开始转动
+function OnClickBeginGame()
+    for j = 1, #WildItem do
+        WildItem[j].gameObject:SetActive(false)
+        Factory.DestroyObject(WildItem[j].gameObject)
+    end
+    WildItem= {}
+    for j = 1, #WildItem2 do
+        WildItem2[j].gameObject:SetActive(false)
+        Factory.DestroyObject(WildItem2[j].gameObject)
+    end
+    WildItem2= {}
+    My.imageBegingameZhezhao:SetActive(true)
+    My.imageMinusZhezhao.gameObject:SetActive(true)
+    My.imageAddZhezhao.gameObject:SetActive(true)
+    My.imageMaxBetZhezhao.gameObject:SetActive(true)
+    outCoin=tonumber(My.textNowBetMoney.text)
+    if not ff then
+        My.imageAudoZhezhao:SetActive(true)
+    end
+    My.textDajiangMoney.text = "0"
+    My.textRewardMoney.text = "0"
+    rewardMoney = 0
+
+    local tempScore=tonumber(My.textPlayerMoney.text)
+
+    if not isfreegame then
+        if tempScore - outCoin <0 and not isfreegame then
+            UIManager.ShowMessageBox("金币不足,下注失败!",function ()
+                 isAudo = false
+                ff = false
+                My.btnBeginGame:SetActive(true)
+                My.btnImmediatelyStop:SetActive(false)
+                My.imageBegingameZhezhao:SetActive(false)
+                My.imageMinusZhezhao.gameObject:SetActive(false)
+                My.imageAddZhezhao.gameObject:SetActive(false)
+                My.imageMaxBetZhezhao.gameObject:SetActive(false)
+                My.imageAudoZhezhao:SetActive(false)
+                My.btnCancelAudio:SetActive(false)
+                My.btnAudoGame:SetActive(true)
+            end ,true,false)
+            if isAudo then
+                isAudo = false
+                BetInit()
+                OtherButtonInit()
+            end
+            return
+        end
+
+    end
+    if  freegameNumber<=0 then
+        tempScore=tempScore - outCoin
+        My.textPlayerMoney.text=tempScore
+        print("玩家金币"..My.textPlayerMoney.text)
+    end
+    num=100
+    IsClick=true
+    print("压注*********"..outCoin)
+    BQTPRequest.StartPlayReq(outCoin)
+end
+--立即停止转动按钮 **********************未使用
+function OnClickStopGame()
+    My.imageBegingameZhezhao:SetActive(true)
+    ImmediatelyStop()
+end
+
+--最大下注按钮
+function OnClickMaxbet()
+    PlayAudioClip("Normal_MaxBet")
+    nowBetNumber = #BQTPData.stakeArrs
+    My.textNowBetMoney.text = BQTPData.stakeArrs[nowBetNumber]
+    BetInit()
+end
+local xiaochuitem={}
+local IsWild=nil
+
+--接收旋转结果
+function HandlePlayRoll(msg)
+    if msg.Error==ErrorCode.Code.success then
+        NetFly=false
+        local tempScore=tonumber(msg.goldNumber)
+        --My.textPlayerMoney.text=tempScore
+        freegameNumber = msg.freeGameCount
+        My.textFreeNumber.text = freegameNumber
+        IsWild=msg.toW
+        if num~=IsWild and IsWild~=-1 then
+            PlayWildEff(IsWild)
+            num=IsWild
+        end
+        rewardMoney=msg.winCoin
+        gameResults6=msg.move
+        if msg.change then
+            for i = 1, #gameResults6 do
+                if gameResults6[i]==-1 then
+                    table.insert(xiaochuitem, i)
+                end
+            end
+        end
+        if IsClick then--正常转动
+            --local tempScore=tonumber(msg.goldNumber)
+            if not isfreegame then
+
+                --My.textRewardMoney.text = "0"
+            else
+                if isFreePanle then
+                    --My.textRewardMoney.text = "0"
+                end
+            end
+            My.nowgameState = GameState.START
+            --playResponseList = msg.playResponseList
+            --removeNumber = #msg.playResponseList
+            --print("消除次数:"..(removeNumber - 1))
+            isFreePanle = msg.isFree
+            gameResults1 = {}
+            gameResults2 = {}
+            gameResults3 = {}
+            gameResults4 = {}
+            gameResults5 = {}
+            gameDeleteResults = {}
+            compensationModel = {}
+            if not isfreegame then
+                if ff then
+                    My.btnCancelAudio:SetActive(true)
+                    My.btnAudoGame:SetActive(false)
+                    My.imageAudoZhezhao:SetActive(false)
+                end
+            end
+            for i = 1, #msg.iconResult do
+                if i%5==1 then
+                    table.insert(gameResults1,1, msg.iconResult[i])
+                end
+                if i%5==2 then
+                    table.insert(gameResults2,1, msg.iconResult[i])
+                end
+                if i%5==3 then
+                    table.insert(gameResults3,1, msg.iconResult[i])
+                end
+                if i%5==4 then
+                    table.insert(gameResults4,1, msg.iconResult[i])
+                end
+                if i%5==0 then
+                    table.insert(gameResults5,1, msg.iconResult[i])
+                end
+            end
+            --设置初始游戏元素
+            math.randomseed(tostring(os.time()):reverse():sub(1, 6))--设置随机数种子
+            --if removeNumber > 1 then
+            --   for i = 2, removeNumber do
+            --      for j = #compensationModel + 1, 5 do
+            --          if playResponseList[i].iconResult[j] ~= -1 then
+            --             table.insert(compensationModel, playResponseList[i].iconResult[j])
+            --          end
+            --    end
+            --    if #compensationModel >= 5 then
+            --        break
+            --     end
+            --  end
+            Isxiaochu=msg.change
+            if Isxiaochu then
+                table.insert(compensationModel, msg.move)
+                for i = 1, 5 do
+                    table.insert(compensationModel, math.random(0,10))
+                end
+
+            end
+            table.insert(gameResults1, math.random(0,10))
+            table.insert(gameResults2, math.random(0,10))
+            table.insert(gameResults3, math.random(0,10))
+            table.insert(gameResults4, math.random(0,10))
+            table.insert(gameResults5, math.random(0,10))
+            nowRemoveNumber = 1
+            totalMultiple = msg.totalMultiple
+            gameDeleteResults = msg.animaPoint
+
+            BeginGame()
+            IsClick=false
+        else
+        --消除后逻辑
+            gameDeleteResults = msg.animaPoint
+        IconResult= msg.iconResult
+        isFreePanle = msg.isFree
+        local outCoin=tonumber(My.textNowBetMoney.text)
+
+        if not isfreegame then
+        --tempScore=tempScore - outCoin
+        --My.textPlayerMoney.text=tempScore
+        --My.textRewardMoney.text = "0"
+        else
+        if isFreePanle then
+        --My.textRewardMoney.text = "0"
+            end
+            end
+            if not isfreegame then
+            if ff then
+            My.btnCancelAudio:SetActive(true)
+        My.btnAudoGame:SetActive(false)
+        My.imageAudoZhezhao:SetActive(false)
+        end
+        end
+        Isxiaochu=msg.change
+            --Factory.DelayRun(1.2,DeleteModel)
+            end
+
+    end
+    local num1=NewItemPos(My.gameModelList1)
+    local num2=NewItemPos(My.gameModelList2)
+    local num3=NewItemPos(My.gameModelList3)
+    local num4=NewItemPos(My.gameModelList4)
+    local num5=NewItemPos(My.gameModelList5)
+    if num1~=0 or num2~=0 or num3~=0 or num4~=0 or num5~=0 then
+        NewItemDown()
+    end
+
+end
+
+function PlayWildEff(index)
+    local randomnum=math.floor(math.random(1,3))
+    print(randomnum.."显示特效")
+    if index==1 then
+        My.wildeff2.transform:GetChild(randomnum-1).gameObject:SetActive(true)
+        Factory.DelayRun(2,function ()
+            My.wildeff2.transform:GetChild(randomnum-1).gameObject:SetActive(false)
+        end)
+    elseif index==2 then
+        My.wildeff3.transform:GetChild(randomnum-1).gameObject:SetActive(true)
+        Factory.DelayRun(2,function ()
+            My.wildeff3.transform:GetChild(randomnum-1).gameObject:SetActive(false)
+        end)
+    elseif index==3 then
+        My.wildeff4.transform:GetChild(randomnum-1).gameObject:SetActive(true)
+        Factory.DelayRun(2,function ()
+            My.wildeff4.transform:GetChild(randomnum-1).gameObject:SetActive(false)
+        end)
+    end
+
+
+end
+
+--转动
+function BeginGame()
+    zhuandong = true
+    PlayAudioClip("Normal_ReelRun")
+    itemStop1 = ZhuandongState.beginZhuandong
+    itemStop2 = ZhuandongState.beginZhuandong
+    itemStop3 = ZhuandongState.beginZhuandong
+    itemStop4 = ZhuandongState.beginZhuandong
+    itemStop5 = ZhuandongState.beginZhuandong
+    BetInit()
+    OtherButtonInit()
+    FreeGamelianji(0)
+    My.btnBeginGame:SetActive(false)
+    My.btnImmediatelyStop:SetActive(true)
+    Factory.DelayRun(1,StopGame)
+    -- Factory.DelayRun(0.3,function ()
+    --     My.btnBeginGame:SetActive(false)
+    --     My.btnImmediatelyStop:SetActive(true)
+    -- end)
+end
+
+--转动停止 赋值结果
+function StopGame()
+    itemStop1 =  ZhuandongState.endZhuandong
+    Factory.DelayRun(0.2,function()
+        itemStop2 =  ZhuandongState.endZhuandong
+    end)
+    Factory.DelayRun(0.4 ,function()
+         itemStop3 =  ZhuandongState.endZhuandong
+    end)
+    Factory.DelayRun(0.6 ,function()
+        itemStop4 =  ZhuandongState.endZhuandong
+    end)
+    Factory.DelayRun(0.8 ,function()
+        itemStop5 =  ZhuandongState.endZhuandong
+    end)
+end
+
+--回弹
+function Springback(num)
+    if num == 1 then
+        itemStop1 = ZhuandongState.stopZhuandong
+        for i=1, #My.gameModelList1 do
+            My.gameModelList1[i].gameObject.transform.position = Vector3(inPos.transform.position.x,EndMovePos.transform.position.y + upAndDownInterval*(i-1),inPos.transform.position.z)
+        end
+        for i = 1, #My.gameModelList1 do
+            My.gameModelList1[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval *(num-1),inPos.transform.position.y+ upAndDownInterval* (i - 1),inPos.transform.position.z), 0.3):SetEase(DG.Tweening.Ease.OutQuad)
+        end
+    elseif num == 2 then
+        itemStop2 = ZhuandongState.stopZhuandong
+        for i=1, #My.gameModelList2 do
+            My.gameModelList2[i].gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval,EndMovePos.transform.position.y + upAndDownInterval*(i-1),inPos.transform.position.z)
+        end
+        for i = 1, #My.gameModelList2 do
+            My.gameModelList2[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval *(num-1),inPos.transform.position.y+ upAndDownInterval* (i - 1),inPos.transform.position.z), 0.3):SetEase(DG.Tweening.Ease.OutQuad)
+        end
+    elseif num == 3 then
+        itemStop3 = ZhuandongState.stopZhuandong
+        for i=1, #My.gameModelList3 do
+            My.gameModelList3[i].gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval*2,EndMovePos.transform.position.y + upAndDownInterval*(i-1),inPos.transform.position.z)
+        end
+        for i = 1, #My.gameModelList3 do
+            My.gameModelList3[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval *(num-1),inPos.transform.position.y+ upAndDownInterval* (i - 1),inPos.transform.position.z), 0.3):SetEase(DG.Tweening.Ease.OutQuad)
+        end
+    elseif num == 4 then
+        itemStop4 = ZhuandongState.stopZhuandong
+        for i=1, #My.gameModelList4 do
+            My.gameModelList4[i].gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval*3,EndMovePos.transform.position.y + upAndDownInterval*(i-1),inPos.transform.position.z)
+        end
+        for i = 1, #My.gameModelList4 do
+            My.gameModelList4[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval *(num-1),inPos.transform.position.y+ upAndDownInterval* (i - 1),inPos.transform.position.z), 0.3):SetEase(DG.Tweening.Ease.OutQuad)
+        end
+    elseif num == 5 then
+        itemStop5 = ZhuandongState.stopZhuandong
+        for i=1, #My.gameModelList5 do
+            My.gameModelList5[i].gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval*4,EndMovePos.transform.position.y + upAndDownInterval*(i-1),inPos.transform.position.z)
+        end
+        for i = 1, #My.gameModelList5 do
+            My.gameModelList5[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval *(num-1),inPos.transform.position.y+ upAndDownInterval* (i - 1),inPos.transform.position.z), 0.3):SetEase(DG.Tweening.Ease.OutQuad):OnComplete(function()
+                if i == #My.gameModelList5 then
+                   StopAllAudioClip("Normal_ReelRun")
+                    Endzhuandong()
+                end
+            end)
+        end
+    end
+end
+
+--让转动立即停止 *************未使用
+function ImmediatelyStop ()
+    zhuandong = false
+    if itemStop1 ~= ZhuandongState.stopZhuandong then
+        Springback(1)
+    end
+    if itemStop2 ~= ZhuandongState.stopZhuandong then
+        Springback(2)
+    end
+    if itemStop3 ~= ZhuandongState.stopZhuandong then
+        Springback(3)
+    end
+    if itemStop4 ~= ZhuandongState.stopZhuandong then
+        Springback(4)
+    end
+    if itemStop5 ~= ZhuandongState.stopZhuandong then
+        Springback(5)
+    end
+
+end
+
+--转动停止
+function Endzhuandong()
+    print("停止转动+++++++++++++++++++")
+    zhuandong = false
+    DeleteGameModel()
+    if not isFreePanle then
+        if Isxiaochu  then
+            if #My.gameModelList1 > 3 then
+                Factory.DestroyObject(My.gameModelList1[4].gameObject)
+                table.remove(My.gameModelList1, 4)
+            end
+            if #My.gameModelList2 > 3 then
+                Factory.DestroyObject(My.gameModelList2[4].gameObject)
+                table.remove(My.gameModelList2, 4)
+            end
+            if #My.gameModelList3 > 3 then
+                Factory.DestroyObject(My.gameModelList3[4].gameObject)
+                table.remove(My.gameModelList3, 4)
+            end
+
+            if #My.gameModelList4 > 3 then
+                Factory.DestroyObject(My.gameModelList4[4].gameObject)
+                table.remove(My.gameModelList4, 4)
+            end
+            if #My.gameModelList5 > 3 then
+                Factory.DestroyObject(My.gameModelList5[4].gameObject)
+                table.remove(My.gameModelList5, 4)
+            end
+            Factory.DelayRun(0.6,ModelAnimation)
+
+        else
+            Factory.DelayRun(0.5,function ()
+                if freegameNumber > 0 then
+                    if not isfreegame then
+                        print("进入免费")
+                        isfreegame = true
+                        My.imageAudoZhezhao:SetActive(true)
+                        imagefreegame1.gameObject:SetActive(true)
+                        imagefreegame2.gameObject:SetActive(false)
+                        imagefreegame1.gameObject:GetComponent("UnityArmatureComponent").animation:GotoAndPlayByFrame("Sprite", 0,1)
+                        Factory.DelayRun(0.2,function ()
+                            freegameBG.gameObject:SetActive(true)
+                            My.textFreeNumber.text = freegameNumber
+                            putonggameBG.gameObject:SetActive(false)
+                            FreeGamelianji(0)
+                            My.nowgameState = GameState.NOSTART
+                            My.textRewardMoney.text = "0"
+                            Factory.DelayRun(0.3,function ()
+                                OnClickBeginGame()
+                            end)
+                        end)
+                    else
+                        My.nowgameState = GameState.NOSTART
+                        Factory.DelayRun(0.5,function ()
+                            OnClickBeginGame()
+                        end)
+                    end
+                else
+                    if isfreegame then
+                        print("结束免费")
+                        isfreegame = false
+                        freerewardMoney = 0
+                        My.imageAudoZhezhao:SetActive(false)
+                        imagefreegame1.gameObject:SetActive(false)
+                        imagefreegame2.gameObject:SetActive(true)
+                        imagefreegame2.gameObject:GetComponent("UnityArmatureComponent").animation:GotoAndPlayByFrame("Sprite", 0,1)
+                        Factory.DelayRun(1.5,function ()
+                            freegameBG.gameObject:SetActive(false)
+                            putonggameBG.gameObject:SetActive(true)
+                        end)
+                        if isAudo then
+                            My.imageBegingameZhezhao:SetActive(true)
+                            BetInit()
+                            My.nowgameState = GameState.NOSTART
+                            Factory.DelayRun(1.5,OnClickBeginGame)
+                        else
+                            if not ff then
+                                My.imageAudoZhezhao:SetActive(false)
+                            end
+                            My.imageBegingameZhezhao:SetActive(false)
+                            My.nowgameState = GameState.NOSTART
+                        end
+                    else
+                        if isAudo then
+                            My.imageBegingameZhezhao:SetActive(true)
+                            BetInit()
+                            My.nowgameState = GameState.NOSTART
+                            Factory.DelayRun(0.5,OnClickBeginGame)
+                        else
+                            My.nowgameState = GameState.NOSTART
+                            if not ff then
+                                My.imageAudoZhezhao:SetActive(false)
+                            end
+                            My.imageBegingameZhezhao:SetActive(false)
+                        end
+                    end
+
+                    BetInit()
+                    OtherButtonInit()
+                    My.btnBeginGame:SetActive(true)
+                    My.btnImmediatelyStop:SetActive(false)
+                end
+            end)
+            if #My.gameModelList1 <= 3 then
+                AddGameModel()
+            end
+        end
+    else
+        Factory.DelayRun(0.6,ModelAnimation)
+        --Request.StartPlayReq(BQTPData.sid,outCoin)
+    end
+
+end
+
+--免费游戏中连击次数
+function FreeGamelianji (num)
+    print(num)
+    if num > 4 then
+        for i = 1, #My.imagefreegamelianji do
+            My.imagefreegamelianji[i].gameObject:GetComponent("Image").sprite = Factory.LoadSpriteFromBundle(gameName,"Icon","2X_"..i)
+        end
+    elseif num == 0 then
+        for i = 1, #My.imagefreegamelianji do
+            My.imagefreegamelianji[i].gameObject:GetComponent("Image").sprite = Factory.LoadSpriteFromBundle(gameName,"Icon","1X_"..i)
+        end
+    else
+        for i = 1, #My.imagefreegamelianji do
+            if i <= num then
+                My.imagefreegamelianji[i].gameObject:GetComponent("Image").sprite = Factory.LoadSpriteFromBundle(gameName,"Icon","2X_"..i)
+            else
+                My.imagefreegamelianji[i].gameObject:GetComponent("Image").sprite = Factory.LoadSpriteFromBundle(gameName,"Icon","1X_"..i)
+            end
+        end
+    end
+end
+
+
+
+--元素动画
+function ModelAnimation()
+    PlayAudioClip("Normal_Win")
+    print("开始消除+++++++++++++++++++++++++")
+    for i = 1, #gameDeleteResults do
+        if i%5 == 1 then
+            if gameDeleteResults[i] == 1 then
+                local y = 3 - (i-1)/5
+
+                --克隆元素动画
+                local obj = nil
+                obj = Factory.LoadObjectFromBundle(gameName,bundleName, My.gameModelList1[y].sprite.name)
+                obj.gameObject.transform.parent = gameItem1.transform
+                obj.gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval *(i%5-1),inPos.transform.position.y+ upAndDownInterval* (y - 1),inPos.transform.position.z)
+                if My.gameModelList1[y].sprite.name == "0" then
+                    obj.gameObject.transform.localScale = Vector3(60,60,0)
+                else
+                    obj.gameObject.transform.localScale = Vector3(45,45,0)
+                end
+                table.insert(gameDeleteYuansu2,obj)
+                obj.gameObject:SetActive(true)
+                My.gameModelList1[y].gameObject:SetActive(false)
+                table.insert(gameDeleteYuansu3, My.gameModelList1[y].gameObject)
+                if not isFreePanle then
+                     --克隆消除动画
+                     local obj1 = nil
+                     obj1 = Factory.LoadObjectFromBundle(gameName,bundleName,"xiaochu")
+                     obj1.gameObject.transform.parent = gameItem1.transform
+                     obj1.gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval *(i%5-1),inPos.transform.position.y+ upAndDownInterval* (y - 1),inPos.transform.position.z)
+                     obj1.gameObject.transform.localScale = Vector3(45,45,0)
+                    if #My.gameModelList1>3 then
+                        if  My.gameModelList1[1].sprite.name == "9" and  My.gameModelList1[2].sprite.name == "9" and  My.gameModelList1[3].sprite.name == "9" then
+                            table.insert(WildItem,obj1)
+                        else
+                            table.insert(gameDeleteYuansu,obj1)
+                        end
+                    else
+                        table.insert(gameDeleteYuansu,obj1)
+                    end
+
+                end
+
+            end
+        end
+        if i%5 == 2 then
+            if gameDeleteResults[i] == 1 then
+                local y = 3 - math.floor((i-1)/5)
+                --克隆元素动画
+                local obj = nil
+                print(y.."//////////////////////////////////////++")
+                obj = Factory.LoadObjectFromBundle(gameName,bundleName, My.gameModelList2[y].sprite.name)
+                obj.gameObject.transform.parent = gameItem2.transform
+                obj.gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval *(i%5-1),inPos.transform.position.y+ upAndDownInterval* (y - 1),inPos.transform.position.z)
+                if My.gameModelList2[y].sprite.name == "0" then
+                    obj.gameObject.transform.localScale = Vector3(60,60,0)
+                else
+                    obj.gameObject.transform.localScale = Vector3(45,45,0)
+                end
+                if  IsWild==1 then
+                    table.insert(WildItem2,obj)
+                    obj.gameObject:SetActive(true)
+                    My.gameModelList2[y].gameObject:SetActive(false)
+                    Factory.DelayRun(0.5,function()
+                        --obj.gameObject:SetActive(false)
+                        My.gameModelList2[y].gameObject:SetActive(true)
+                   end )
+                else
+                    table.insert(gameDeleteYuansu2,obj)
+                    obj.gameObject:SetActive(true)
+                    My.gameModelList2[y].gameObject:SetActive(false)
+                end
+                table.insert(gameDeleteYuansu3, My.gameModelList2[y].gameObject)
+                if not isFreePanle then
+                    --克隆消除动画
+                    local obj1 = nil
+                    obj1 = Factory.LoadObjectFromBundle(gameName,bundleName,"xiaochu")
+                    obj1.gameObject.transform.parent = gameItem2.transform
+                    obj1.gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval *(i%5-1),inPos.transform.position.y+ upAndDownInterval* (y - 1),inPos.transform.position.z)
+                    obj1.gameObject.transform.localScale = Vector3(45,45,0)
+                    if #My.gameModelList2>=3 then
+                        if  My.gameModelList2[1].sprite.name == "9" and  My.gameModelList2[2].sprite.name == "9" and  My.gameModelList2[3].sprite.name == "9" then
+                            table.insert(WildItem,obj1)
+                            print("wild*****************"..#WildItem)
+                        else
+                            table.insert(gameDeleteYuansu,obj1)
+                        end
+                    else
+                        table.insert(gameDeleteYuansu,obj1)
+                    end
+                end
+            end
+        end
+        if i%5 == 3 then
+            if gameDeleteResults[i] == 1 then
+                local y = 3 - math.floor((i-1)/5)
+                --克隆元素动画
+                local obj = nil
+                obj = Factory.LoadObjectFromBundle(gameName,bundleName, My.gameModelList3[y].sprite.name)
+                obj.gameObject.transform.parent = gameItem3.transform
+                obj.gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval *(i%5-1),inPos.transform.position.y+ upAndDownInterval* (y - 1),inPos.transform.position.z)
+                if My.gameModelList3[y].sprite.name == "0" then
+                    obj.gameObject.transform.localScale = Vector3(60,60,0)
+                else
+                    obj.gameObject.transform.localScale = Vector3(45,45,0)
+                end
+                if  IsWild==2 then
+                    table.insert(WildItem2,obj)
+                    obj.gameObject:SetActive(true)
+                    My.gameModelList3[y].gameObject:SetActive(false)
+                    Factory.DelayRun(0.5,function()
+                        --obj.gameObject:SetActive(false)
+                        My.gameModelList3[y].gameObject:SetActive(true)
+                    end )
+                else
+                    table.insert(gameDeleteYuansu2,obj)
+                    obj.gameObject:SetActive(true)
+                    My.gameModelList3[y].gameObject:SetActive(false)
+                end
+
+                table.insert(gameDeleteYuansu3, My.gameModelList3[y].gameObject)
+                if not isFreePanle then
+                    --克隆消除动画
+                    local obj1 = nil
+                    obj1 = Factory.LoadObjectFromBundle(gameName,bundleName,"xiaochu")
+                    obj1.gameObject.transform.parent = gameItem3.transform
+                    obj1.gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval *(i%5-1),inPos.transform.position.y+ upAndDownInterval* (y - 1),inPos.transform.position.z)
+                    obj1.gameObject.transform.localScale = Vector3(45,45,0)
+                    if #My.gameModelList3>=3 then
+                        if  My.gameModelList3[1].sprite.name == "9" and  My.gameModelList3[2].sprite.name == "9" and  My.gameModelList3[3].sprite.name == "9" then
+                            table.insert(WildItem,obj1)
+                            print("wild*****************"..#WildItem)
+                        else
+                            table.insert(gameDeleteYuansu,obj1)
+                        end
+                    else
+                        table.insert(gameDeleteYuansu,obj1)
+                    end
+                end
+            end
+        end
+        if i%5 == 4 then
+            if gameDeleteResults[i] == 1 then
+                local y = 3 - math.floor((i-1)/5)
+                --克隆元素动画
+                local obj = nil
+                obj = Factory.LoadObjectFromBundle(gameName,bundleName, My.gameModelList4[y].sprite.name)
+                obj.gameObject.transform.parent = gameItem4.transform
+                obj.gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval *(i%5-1),inPos.transform.position.y+ upAndDownInterval* (y - 1),inPos.transform.position.z)
+                if My.gameModelList4[y].sprite.name == "0" then
+                    obj.gameObject.transform.localScale = Vector3(60,60,0)
+                else
+                    obj.gameObject.transform.localScale = Vector3(45,45,0)
+                end
+                if  IsWild==3 then
+                    table.insert(WildItem2,obj)
+                    obj.gameObject:SetActive(true)
+                    My.gameModelList4[y].gameObject:SetActive(false)
+                    Factory.DelayRun(0.5,function()
+                        My.gameModelList4[y].gameObject:SetActive(true)
+                    end )
+                else
+                    table.insert(gameDeleteYuansu2,obj)
+                    obj.gameObject:SetActive(true)
+                    My.gameModelList4[y].gameObject:SetActive(false)
+                end
+                table.insert(gameDeleteYuansu3, My.gameModelList4[y].gameObject)
+                if not isFreePanle then
+                    --克隆消除动画
+                    local obj1 = nil
+                    obj1 = Factory.LoadObjectFromBundle(gameName,bundleName,"xiaochu")
+                    obj1.gameObject.transform.parent = gameItem4.transform
+                    obj1.gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval *(i%5-1),inPos.transform.position.y+ upAndDownInterval* (y - 1),inPos.transform.position.z)
+                    obj1.gameObject.transform.localScale = Vector3(45,45,0)
+                    if #My.gameModelList4>=3 then
+                        if  My.gameModelList4[1].sprite.name == "9" and  My.gameModelList4[2].sprite.name == "9" and  My.gameModelList4[3].sprite.name == "9" then
+                            table.insert(WildItem,obj1)
+                            print("wild*****************"..#WildItem)
+                        else
+                            table.insert(gameDeleteYuansu,obj1)
+                        end
+                    else
+                        table.insert(gameDeleteYuansu,obj1)
+                    end
+                end
+
+            end
+        end
+        if i%5 == 0 then
+            if gameDeleteResults[i] == 1 then
+                local y = 3 - math.floor((i-1)/5)
+                --克隆元素动画
+                local obj = nil
+                obj = Factory.LoadObjectFromBundle(gameName,bundleName, My.gameModelList5[y].sprite.name)
+                obj.gameObject.transform.parent = gameItem5.transform
+                obj.gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval *4,inPos.transform.position.y+ upAndDownInterval* (y - 1),inPos.transform.position.z)
+                if My.gameModelList5[y].sprite.name == "0" then
+                    obj.gameObject.transform.localScale = Vector3(60,60,0)
+                else
+                    obj.gameObject.transform.localScale = Vector3(45,45,0)
+                end
+                table.insert(gameDeleteYuansu2,obj)
+                obj.gameObject:SetActive(true)
+                My.gameModelList5[y].gameObject:SetActive(false)
+                table.insert(gameDeleteYuansu3, My.gameModelList5[y].gameObject)
+                if not isFreePanle then
+                    --克隆消除动画
+                    local obj1 = nil
+                    obj1 = Factory.LoadObjectFromBundle(gameName,bundleName,"xiaochu")
+                    obj1.gameObject.transform.parent = gameItem5.transform
+                    obj1.gameObject.transform.position = Vector3(inPos.transform.position.x + leftAndRightInterval *4,inPos.transform.position.y+ upAndDownInterval* (y - 1),inPos.transform.position.z)
+                    obj1.gameObject.transform.localScale = Vector3(45,45,0)
+                    if #My.gameModelList5>3 then
+                        if  My.gameModelList5[1].sprite.name == "9" and  My.gameModelList5[2].sprite.name == "9" and  My.gameModelList5[3].sprite.name == "9" then
+                            table.insert(WildItem,obj1)
+                        else
+                            table.insert(gameDeleteYuansu,obj1)
+                        end
+                    else
+                        table.insert(gameDeleteYuansu,obj1)
+                    end
+
+
+                end
+            end
+        end
+    end
+
+    jiesuanNowTime = Time.time
+    print("开始加分")
+    if totalMultiple >= 400 then
+        My.objPutongjiang.gameObject:SetActive(false)
+        My.objDajiang.gameObject:SetActive(true)
+        PlayAudioClip("BigWin")
+    else
+        My.objPutongjiang.gameObject:SetActive(true)
+        My.objDajiang.gameObject:SetActive(false)
+    end
+    freerewardMoney = tonumber(My.textRewardMoney.text)
+
+    isJieSuanGunDong = true
+
+
+end
+local deleteNumber1 = 0
+local deleteNumber2 = 0
+local deleteNumber3 = 0
+local deleteNumber4 = 0
+local deleteNumber5 = 0
+
+local isend1 = false
+local isend2 = false
+local isend3 = false
+local isend4 = false
+local isend5 = false
+local jiangetime = 0
+local timer=0
+--元素消除动画
+function DeleteModel ()
+    if isFreePanle then
+        Factory.DelayRun(0.5,function ()
+            for i = 1, #My.gameModelList1 do
+                if not My.gameModelList1[i].gameObject.activeSelf then
+                    My.gameModelList1[i].gameObject:SetActive(true)
+                end
+            end
+            for i = 1, #My.gameModelList2 do
+                if not My.gameModelList2[i].gameObject.activeSelf then
+                    My.gameModelList2[i].gameObject:SetActive(true)
+                end
+            end
+            for i = 1, #My.gameModelList3 do
+                if not My.gameModelList3[i].gameObject.activeSelf then
+                    My.gameModelList3[i].gameObject:SetActive(true)
+                end
+            end
+            for i = 1, #My.gameModelList4 do
+                if not My.gameModelList4[i].gameObject.activeSelf then
+                    My.gameModelList4[i].gameObject:SetActive(true)
+                end
+            end
+            for i = 1, #My.gameModelList5 do
+                if not My.gameModelList5[i].gameObject.activeSelf then
+                    My.gameModelList5[i].gameObject:SetActive(true)
+                end
+            end
+
+            for j = 1, #gameDeleteYuansu2 do
+                Factory.DestroyObject(gameDeleteYuansu2[j].gameObject)
+            end
+            gameDeleteYuansu2=  {}
+            isFreePanle = false
+
+            Endzhuandong()
+        end)
+        do
+            return
+        end
+    end
+
+    deleteNumber1 = 0
+    deleteNumber2 = 0
+    deleteNumber3 = 0
+    deleteNumber4 = 0
+    deleteNumber5 = 0
+
+    isend1 = false
+    isend2 = false
+    isend3 = false
+    isend4 = false
+    isend5 = false
+
+    NetFly=true
+    xiaochuitem={}
+    for i = 1, #gameDeleteYuansu do
+        gameDeleteYuansu[i].gameObject:SetActive(true)
+        if i == #gameDeleteYuansu then
+            Factory.DelayRun(0.4,function ()
+                for j = 1, #gameDeleteYuansu2 do
+                    gameDeleteYuansu2[j].gameObject:SetActive(false)
+                    Factory.DestroyObject(gameDeleteYuansu2[j].gameObject)
+                end
+                gameDeleteYuansu2= {}
+            end)
+            gameDeleteYuansu[i].gameObject:GetComponent("UnityArmatureComponent"):AddEventListener(DragonBones.EventObject.COMPLETE, function ()
+
+                    for k = 1, 3 do
+                        if not My.gameModelList1[k].gameObject.activeSelf then
+                            deleteNumber1 = deleteNumber1 + 1
+                            -- Factory.DestroyObject(My.gameModelList1[i].gameObject)
+                        end
+                    end
+                    if deleteNumber1>0 then
+                        Factory.DelayRun(0,function ()
+                            ModelDownMove(1)
+                        end)
+                        jiangetime = jiangetime + 1
+                    end
+                    for k = 1, 3 do
+                        if not My.gameModelList2[k].gameObject.activeSelf then
+                            deleteNumber2 = deleteNumber2 + 1
+                            -- Factory.DestroyObject(My.gameModelList2[i].gameObject)
+                        end
+                    end
+                    if deleteNumber2>0 then
+                        Factory.DelayRun(0.1 * jiangetime,function ()
+
+                        end)
+                        ModelDownMove(2)
+                        jiangetime = jiangetime + 1
+                    end
+
+                    for k = 1, 3 do
+                        if not My.gameModelList3[k].gameObject.activeSelf then
+                            deleteNumber3 = deleteNumber3 + 1
+                            -- Factory.DestroyObject(My.gameModelList3[i].gameObject)
+                        end
+                    end
+                    if deleteNumber3>0 then
+                        Factory.DelayRun(0.1 *jiangetime, function ()
+
+                        end)
+                        ModelDownMove(3)
+                        jiangetime = jiangetime + 1
+                    end
+
+                    for k = 1, 3 do
+                        if not My.gameModelList4[k].gameObject.activeSelf then
+                            deleteNumber4 = deleteNumber4 + 1
+                            -- Factory.DestroyObject(My.gameModelList4[i].gameObject)
+                        end
+                    end
+                    if deleteNumber4>0 then
+                        Factory.DelayRun(0.1 * jiangetime,function ()
+
+                        end)
+                        ModelDownMove(4)
+                        jiangetime = jiangetime + 1
+                    end
+
+                    for k = 1, 3 do
+                        if not My.gameModelList5[k].gameObject.activeSelf then
+                            deleteNumber5 = deleteNumber5 + 1
+                            -- Factory.DestroyObject(My.gameModelList5[i].gameObject)
+                        end
+                    end
+                    if deleteNumber5>0 then
+                        Factory.DelayRun(0.1 * jiangetime,function ()
+
+                        end)
+                        ModelDownMove(5)
+                        jiangetime = jiangetime + 1
+                    end
+
+                for j = 1, #gameDeleteYuansu do
+                    gameDeleteYuansu[j].gameObject:SetActive(false)
+                end
+                Factory.DelayRun(1,function ()
+                    for j = 1, #gameDeleteYuansu do
+                        Factory.DestroyObject(gameDeleteYuansu[j].gameObject)
+                    end
+                    gameDeleteYuansu = {}
+                end)
+
+            end)
+        end
+    end
+   -- Factory.DelayRun(1.5 + 0.2 + 0.1 * jiangetime,SupplementModel)
+
+    BQTPRequest.StartPlayReq(outCoin)
+    gameDeleteYuansu3 = {}
+end
+
+--判断重新生成的位置
+function NewItemPos(table)
+    local num=0
+    for i = 1, #table do
+        if not table[i].gameObject.activeSelf then
+            num=num+1
+        end
+    end
+    return num
+end
+
+local NewPos={}
+function NewPosIndex()
+    local num1=NewItemPos(My.gameModelList1)
+    local num2=NewItemPos(My.gameModelList2)
+    local num3=NewItemPos(My.gameModelList3)
+    local num4=NewItemPos(My.gameModelList4)
+    local num5=NewItemPos(My.gameModelList5)
+    if num1==1 then
+        table.insert(NewPos, 1)
+    elseif num1==2 then
+        table.insert(NewPos, 1)
+        table.insert(NewPos, 6)
+    elseif num1==3 then
+        table.insert(NewPos, 1)
+        table.insert(NewPos, 6)
+        table.insert(NewPos, 11)
+    end
+    if num2==1 then
+        table.insert(NewPos, 2)
+    elseif num2==2 then
+        table.insert(NewPos, 2)
+        table.insert(NewPos, 7)
+    elseif num2==3 then
+        table.insert(NewPos, 2)
+        table.insert(NewPos, 7)
+        table.insert(NewPos, 12)
+    end
+    if num3==1 then
+        table.insert(NewPos, 3)
+    elseif num3==2 then
+        table.insert(NewPos, 3)
+        table.insert(NewPos, 8)
+    elseif num3==3 then
+        table.insert(NewPos, 3)
+        table.insert(NewPos, 8)
+        table.insert(NewPos, 13)
+    end
+    if num4==1 then
+        table.insert(NewPos, 4)
+    elseif num4==2 then
+        table.insert(NewPos, 4)
+        table.insert(NewPos, 9)
+    elseif num4==3 then
+        table.insert(NewPos, 4)
+        table.insert(NewPos, 9)
+        table.insert(NewPos, 14)
+    end
+    if num5==1 then
+        table.insert(NewPos, 5)
+    elseif num5==2 then
+        table.insert(NewPos, 5)
+        table.insert(NewPos, 10)
+    elseif num5==3 then
+        table.insert(NewPos, 5)
+        table.insert(NewPos, 10)
+        table.insert(NewPos, 15)
+    end
+
+end
+
+--生成填充
+function NewItemDown()
+    NewPosIndex()
+    for x = 1, #NewPos do
+    end
+    for i = #IconResult, 1,-1 do
+        for j = 1, #NewPos do
+            if NewPos[j]==i then
+                local obj = nil
+                obj = Factory.LoadObjectFromBundle(gameName,bundleName,"model").gameObject:GetComponent("Image")
+                obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon",IconResult[i])
+                print("新生成图标*****"..IconResult[i])
+                if i%5==1 then
+                    obj.gameObject.transform.parent = gameItem1.transform
+                    obj.gameObject.transform.position =  Vector3(inPos.transform.position.x,My.gameModelList1[#My.gameModelList1].transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                    obj.gameObject.transform.localScale = Vector3(1,1,1)
+                    table.insert(My.gameModelList1, obj)
+                end
+                if i%5==2 then
+                    obj.gameObject.transform.parent = gameItem2.transform
+                    obj.gameObject.transform.position =  Vector3(inPos.transform.position.x + leftAndRightInterval,My.gameModelList2[#My.gameModelList2].transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                    obj.gameObject.transform.localScale = Vector3(1,1,1)
+                    table.insert(My.gameModelList2, obj)
+                end
+                if i%5==3 then
+                    obj.gameObject.transform.parent = gameItem3.transform
+                    obj.gameObject.transform.position =  Vector3(inPos.transform.position.x + leftAndRightInterval*2,My.gameModelList3[#My.gameModelList3].transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                    obj.gameObject.transform.localScale = Vector3(1,1,1)
+                    table.insert(My.gameModelList3, obj)
+                end
+                if i%5==4 then
+                    obj.gameObject.transform.parent = gameItem4.transform
+                    obj.gameObject.transform.position =  Vector3(inPos.transform.position.x+ leftAndRightInterval*3,My.gameModelList4[#My.gameModelList4].transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                    obj.gameObject.transform.localScale = Vector3(1,1,1)
+                    table.insert(My.gameModelList4, obj)
+                end
+                if i%5==0 then
+                    obj.gameObject.transform.parent = gameItem5.transform
+                    obj.gameObject.transform.position =  Vector3(inPos.transform.position.x+ leftAndRightInterval*4,My.gameModelList5[#My.gameModelList5].transform.position.y + upAndDownInterval,inPos.transform.position.z)
+                    obj.gameObject.transform.localScale = Vector3(1,1,1)
+                    table.insert(My.gameModelList5, obj)
+                end
+
+            end
+        end
+    end
+    NewPos={}
+    timer=1.5 + 0.2 + 0.01 * jiangetime
+    if timer>=1.8 then
+        timer=1.8
+    end
+    print("落下"..timer)
+    Factory.DelayRun(timer,SupplementModel)
+    --SupplementModel()
+end
+
+
+--元素下落
+function ModelDownMove (item)
+    if item == 1 then
+        local index = 0
+        local y = 0
+        for i = 1, 3 do
+            if My.gameModelList1[i].gameObject.activeSelf then
+                Factory.DelayRun(index*0.01,function()
+                    My.gameModelList1[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval *(item-1),inPos.transform.position.y+ upAndDownInterval* y,inPos.transform.position.z), 0.2)
+                    PlayAudioClip("Normal_ReelStop")
+                    y = y + 1
+                end)
+                index = index +1
+            end
+        end
+    end
+    if item == 2 then
+        local index = 0
+        local y = 0
+        for i = 1, 3 do
+            if My.gameModelList2[i].gameObject.activeSelf then
+                Factory.DelayRun(index*0.01,function()
+                    PlayAudioClip("Normal_ReelStop")
+                    My.gameModelList2[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval *(item-1),inPos.transform.position.y+ upAndDownInterval* y,inPos.transform.position.z), 0.2)
+                    y = y + 1
+                end)
+                index = index +1
+            end
+        end
+    end
+    if item == 3 then
+        local index = 0
+        local y = 0
+        for i = 1, 3 do
+            if My.gameModelList3[i].gameObject.activeSelf then
+                Factory.DelayRun(index*0.01,function()
+                    PlayAudioClip("Normal_ReelStop")
+                    My.gameModelList3[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval *(item-1),inPos.transform.position.y+ upAndDownInterval* y,inPos.transform.position.z), 0.2)
+                    y = y + 1
+                end)
+                index = index +1
+            end
+        end
+    end
+    if item == 4 then
+        local index = 0
+        local y = 0
+        for i = 1, 3 do
+            if My.gameModelList4[i].gameObject.activeSelf then
+                Factory.DelayRun(index*0.01,function()
+                    PlayAudioClip("Normal_ReelStop")
+                    My.gameModelList4[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval *(item-1),inPos.transform.position.y+ upAndDownInterval* y,inPos.transform.position.z), 0.2)
+                    y = y + 1
+                end)
+                index = index +1
+            end
+        end
+    end
+    if item == 5 then
+        local index = 0
+        local y = 0
+        for i = 1, 3 do
+            if My.gameModelList5[i].gameObject.activeSelf then
+                Factory.DelayRun(index*0.01,function()
+                    PlayAudioClip("Normal_ReelStop")
+                    My.gameModelList5[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval *(item-1),inPos.transform.position.y+ upAndDownInterval* y,inPos.transform.position.z), 0.2)
+                    y = y + 1
+                end)
+                index = index +1
+            end
+        end
+    end
+end
+
+--补充消除的元素
+function SupplementModel()
+    local x = 0
+    if deleteNumber1 > 0 then
+        Factory.DelayRun(x * 0.01,function ()
+            local index = 0
+            Factory.DelayRun(index*0.01,function()
+                for i = 4, #My.gameModelList1 do
+                    PlayAudioClip("Normal_ReelStop")
+                    My.gameModelList1[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x  ,inPos.transform.position.y+ upAndDownInterval* ((3 - deleteNumber1) + (i - 4)),inPos.transform.position.z), 0.2)
+                end
+            end)
+            index = index +1
+        end)
+        x = x +1
+    end
+    if deleteNumber2 > 0 then
+        Factory.DelayRun(x * 0.01,function ()
+            local index = 0
+            Factory.DelayRun(index*0.01,function()
+                for i = 4, #My.gameModelList2 do
+                    PlayAudioClip("Normal_ReelStop")
+                    My.gameModelList2[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval ,inPos.transform.position.y+ upAndDownInterval* ((3 - deleteNumber2) + (i - 4)),inPos.transform.position.z), 0.2)
+                end
+            end)
+            index = index +1
+        end)
+        x = x +1
+    end
+    if deleteNumber3 > 0 then
+        Factory.DelayRun(x * 0.01,function ()
+            local index = 0
+            Factory.DelayRun(index*0.01,function()
+                for i = 4, #My.gameModelList3 do
+                    PlayAudioClip("Normal_ReelStop")
+                    My.gameModelList3[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval * 2 ,inPos.transform.position.y+ upAndDownInterval* ((3 - deleteNumber3) + (i - 4)),inPos.transform.position.z), 0.2)
+                end
+            end)
+            index = index +1
+        end)
+        x = x +1
+    end
+    if deleteNumber4 > 0 then
+        Factory.DelayRun(x * 0.01,function ()
+            local index = 0
+            Factory.DelayRun(index*0.01,function()
+                for i = 4, #My.gameModelList4 do
+                    PlayAudioClip("Normal_ReelStop")
+                    My.gameModelList4[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval * 3,inPos.transform.position.y+ upAndDownInterval* ((3 - deleteNumber4) + (i - 4)),inPos.transform.position.z), 0.2)
+                end
+            end)
+            index = index +1
+        end)
+        x = x +1
+    end
+    if deleteNumber5 > 0 then
+        Factory.DelayRun(x * 0.01,function ()
+            local index = 0
+            Factory.DelayRun(index*0.01,function()
+                for i = 4, #My.gameModelList5 do
+                    PlayAudioClip("Normal_ReelStop")
+                    My.gameModelList5[i].gameObject.transform:DOMove(Vector3(inPos.transform.position.x + leftAndRightInterval * 4,inPos.transform.position.y+ upAndDownInterval* ((3 - deleteNumber5) + (i - 4)),inPos.transform.position.z), 0.2)
+                end
+            end)
+            index = index +1
+        end)
+        x = x +1
+    end
+    if isfreegame then
+        FreeGamelianji(nowRemoveNumber)
+    end
+    nowRemoveNumber = nowRemoveNumber + 1
+
+    Factory.DelayRun(0.5,Endzhuandong)
+end
+
+--清空消除的游戏元素
+function DeleteGameModel ()
+    print("清空消除的游戏元素")
+    local a = 1
+    repeat
+        if not My.gameModelList1[a].gameObject.activeSelf then
+            Factory.DestroyObject(My.gameModelList1[a].gameObject)
+            table.remove(My.gameModelList1, a)
+            a = 0
+        end
+        a = a + 1
+    until(a > #My.gameModelList1)
+    local b = 1
+    repeat
+        if not My.gameModelList2[b].gameObject.activeSelf then
+            Factory.DestroyObject(My.gameModelList2[b].gameObject)
+            table.remove(My.gameModelList2, b)
+            b = 0
+        end
+        b = b + 1
+    until(b > #My.gameModelList2)
+    local c = 1
+    repeat
+        if not My.gameModelList3[c].gameObject.activeSelf then
+            Factory.DestroyObject(My.gameModelList3[c].gameObject)
+            table.remove(My.gameModelList3, c)
+            c = 0
+        end
+        c = c + 1
+    until(c > #My.gameModelList3)
+    local d = 1
+    repeat
+        if not My.gameModelList4[d].gameObject.activeSelf then
+            Factory.DestroyObject(My.gameModelList4[d].gameObject)
+            table.remove(My.gameModelList4, d)
+            d = 0
+        end
+        d = d + 1
+    until(d > #My.gameModelList4)
+    local e = 1
+    repeat
+        if not My.gameModelList5[e].gameObject.activeSelf then
+            Factory.DestroyObject(My.gameModelList5[e].gameObject)
+            table.remove(My.gameModelList5, e)
+            e = 0
+        end
+        e = e + 1
+    until(e > #My.gameModelList5)
+end
+
+--补齐每局消除完后每列的第四个元素
+function AddGameModel ()
+    math.randomseed(tostring(os.time()):reverse():sub(1, 6))--设置随机数种子
+    for i = 1, gameWidth do
+        local obj = nil
+        obj = Factory.LoadObjectFromBundle(gameName,bundleName,"model").gameObject:GetComponent("Image")
+        obj.sprite = Factory.LoadSpriteFromBundle(gameName,"Icon", math.random(0,10))
+        if i%5==1 then
+            obj.gameObject.transform.parent = gameItem1.transform
+            obj.gameObject.transform.position =  Vector3(inPos.transform.position.x,inPos.transform.position.y + (2 * upAndDownInterval) + upAndDownInterval * (math.floor((i - 1)/5) + 1),inPos.transform.position.z)
+            obj.gameObject.transform.localScale = Vector3(1,1,1)
+            table.insert(My.gameModelList1, obj)
+        end
+        if i%5==2 then
+            obj.gameObject.transform.parent = gameItem2.transform
+            obj.gameObject.transform.position =  Vector3(inPos.transform.position.x + leftAndRightInterval,inPos.transform.position.y + (2 * upAndDownInterval) + upAndDownInterval * (math.floor((i - 1)/5) + 1),inPos.transform.position.z)
+            obj.gameObject.transform.localScale = Vector3(1,1,1)
+            table.insert(My.gameModelList2, obj)
+        end
+        if i%5==3 then
+            obj.gameObject.transform.parent = gameItem3.transform
+            obj.gameObject.transform.position =  Vector3(inPos.transform.position.x+leftAndRightInterval*2,inPos.transform.position.y + (2 * upAndDownInterval) + upAndDownInterval * (math.floor((i - 1)/5)+1),inPos.transform.position.z)
+            obj.gameObject.transform.localScale = Vector3(1,1,1)
+            table.insert(My.gameModelList3, obj)
+        end
+        if i%5==4 then
+            obj.gameObject.transform.parent = gameItem4.transform
+            obj.gameObject.transform.position =  Vector3(inPos.transform.position.x+leftAndRightInterval*3,inPos.transform.position.y + (2 * upAndDownInterval) + upAndDownInterval * (math.floor((i - 1)/5)+1),inPos.transform.position.z)
+            obj.gameObject.transform.localScale = Vector3(1,1,1)
+            table.insert(My.gameModelList4, obj)
+        end
+        if i%5==0 then
+            obj.gameObject.transform.parent = gameItem5.transform
+            obj.gameObject.transform.position =  Vector3(inPos.transform.position.x+leftAndRightInterval*4,inPos.transform.position.y + (2 * upAndDownInterval) + upAndDownInterval * (math.floor((i - 1)/5) + 1),inPos.transform.position.z)
+            obj.gameObject.transform.localScale = Vector3(1,1,1)
+            table.insert(My.gameModelList5, obj)
+        end
+    end
+end
+
+--退出游戏
+function OnQuitGameRsp()
+    ExitGame()
+    OnClose()
+    GlobalControl.ClearAudioClip()--清理声音缓存
+    BQTPNetWork.Dispose()--关闭子游戏socket
+    GlobalControl.ExitGame()--卸载子游戏AB包
+end

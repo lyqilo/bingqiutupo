@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a64e5b0e436d4bed9780211ae245f7b, type: 3}
+  m_Name: wild-2-smash3_Data
+  m_EditorClassIdentifier: 
+  dataName: wild-2-smash3
+  dragonBonesJSON: {fileID: 4900000, guid: 0830b4eaca4e7ed41990d18a21748cdc, type: 3}
+  textureAtlas:
+  - textureAtlasJSON: {fileID: 4900000, guid: 65dac5cdf8cb2b340afc0a478cb24cf5, type: 3}
+    texture: {fileID: 2800000, guid: eb2fdf0db551e8d439bb4ed04fffec24, type: 3}
+    material: {fileID: 2100000, guid: dd12fb0afdc8b44428548283d438e035, type: 2}
+    uiMaterial: {fileID: 2100000, guid: 5a36209114d84336ac6117166b314030, type: 2}

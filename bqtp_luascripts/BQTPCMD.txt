@@ -1,0 +1,18 @@
+BQTPCMD={}
+local this = BQTPCMD
+--游戏协议
+this.gameCmd =
+{
+	broken           =9999,--被挤掉线
+	ConnectGame=9007,			--断网重连
+	JoinGame = 9000,
+	PlayBQTP = 2000,
+	PlayMarry = 2001,--小玛丽
+	Jackpot = 3000,--奖池,
+	beginGame = 610,--开始游戏
+	BetInfo = 620,--押注信息
+	dealCard = 630,--发牌信息
+	Payment = 640,--赔付信息
+	QuitGame = 9001--退出游戏
+}
+

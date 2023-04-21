@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1a64e5b0e436d4bed9780211ae245f7b, type: 3}
+  m_Name: wild-1-red_Data
+  m_EditorClassIdentifier: 
+  dataName: wild-1-red
+  dragonBonesJSON: {fileID: 4900000, guid: a2f9130159a59b8409c9980506bb6a08, type: 3}
+  textureAtlas:
+  - textureAtlasJSON: {fileID: 4900000, guid: 077fcb34e6b8a8c4e9a81d1467cf4cac, type: 3}
+    texture: {fileID: 2800000, guid: 43e399edfce74924ada3d80b2eea99e4, type: 3}
+    material: {fileID: 2100000, guid: 8c5f3bf67aea6614cb26c776ff97b7dd, type: 2}
+    uiMaterial: {fileID: 2100000, guid: ad09977ff92247a68e10e316197897a0, type: 2}

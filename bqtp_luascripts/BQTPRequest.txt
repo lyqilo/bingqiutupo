@@ -1,0 +1,52 @@
+BQTPRequest={}
+local this=BQTPRequest
+---点击开始转动
+function this.StartPlayReq(nstake)
+
+    local msg = {
+        stake = nstake,--nstake
+    }
+    BQTPNetWork.SendMessage(BQTPCMD.gameCmd.PlayBQTP, msg)
+end
+
+---加入游戏房间
+function this.JoinGameReq()
+    print("进入游戏1")
+    local msg =
+    {
+        uid = GlobalControl.GameData.Uid,
+        roomId =GlobalControl.GameData.RoomId
+    }
+
+    BQTPNetWork.SendMessage(BQTPCMD.gameCmd.JoinGame, msg)
+end
+
+--拉霸游戏断网重连
+function this.ConnectLabaGameSever()
+    local msg=
+    {
+        uid=GlobalControl.GameData.Uid,
+        roomId=GlobalControl.GameData.RoomId,
+
+    }
+    print("房间id"..  msg.roomId)
+
+    BQTPNetWork.SendMessage(BQTPCMD.gameCmd.ConnectGame,msg)
+end
+
+function this.StartJackpotReq()
+    local msg = {
+
+    }
+    BQTPNetWork.SendMessage(BQTPCMD.gameCmd.Jackpot, msg)
+end
+
+--退出游戏
+function this.QuitGameReSq()
+    local msg =
+    {
+        empty = 0
+    }
+    BQTPNetWork.SendMessage(BQTPCMD.gameCmd.QuitGame, msg)
+end
+return this

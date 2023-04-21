@@ -1,0 +1,77 @@
+﻿module("BQTPHelp",package.seeall)
+
+local gameName=nil
+local bundleName="Prefab"
+local editorPath=""
+local prefabName="BQTPHelp"
+
+My =
+{
+    uiobj = nil,
+    items = {},
+    buttonLeft,
+    buttonRight,
+    nowIndex = 0
+}
+
+function GetViewObj()
+    My.uiobj=Factory.LoadObjectFromBundle(gameName,bundleName,editorPath..prefabName)
+    if My.uiobj then
+        Factory.SetToParent(My.uiobj,UIpanel)
+        My.uiobj.name=prefabName
+        
+        Factory.AddClick(My.uiobj.transform:Find("Panel/ButtonBack"), function () OnClose() end)
+
+        My.buttonLeft = My.uiobj.transform:Find("Panel/ButtonLeft").gameObject
+		My.buttonRight = My.uiobj.transform:Find("Panel/ButtonRight").gameObject
+
+		Factory.AddClick(My.buttonLeft,function ()	OnClickPage(false) end)
+        Factory.AddClick(My.buttonRight,function () OnClickPage(true) end)
+        
+        for i=1,4 do
+            My.items[i] = My.uiobj.transform:Find("Panel/Grid/item"..i).gameObject
+            print(My.items[i].name)
+		end
+    end
+end
+
+function OnCreate()
+    if My.uiobj == nil then
+        gameName = BQTPData.gameName
+        GetViewObj()
+    end
+    if My.uiobj then
+        My.uiobj:SetActive(true)
+    end
+    return My.uiobj
+end
+
+function OnClose()
+    if My.uiobj then
+          Factory.DestroyObject(My.uiobj)
+    end
+    My.uiobj = nil
+end
+
+function Init()
+    OnClickPage(true)
+end
+
+function OnClickPage(isRight)
+
+	if isRight then
+		My.nowIndex = My.nowIndex + 1
+		if My.nowIndex > 4 then
+			My.nowIndex = 1
+		end
+	else
+		My.nowIndex = My.nowIndex - 1
+		if My.nowIndex < 1 then
+			My.nowIndex = 4
+		end
+	end
+
+	for i=1,4 do
+		My.items[i]:SetActive(i == My.nowIndex)
+	end
+end

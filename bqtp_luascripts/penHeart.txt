@@ -1,0 +1,15 @@
+module("BQTPData",package.seeall)
+
+gameName = "" --游戏名字
+sid = 0 --房间ID
+stakeArrs = {} --押注列表
+
+--退出游戏时清理缓存
+function OnExitGame()
+    sid = 0
+    stakeArrs = {}
+    Players = {}
+end
+
+winFreeVo={}
+userProfileVo={}
