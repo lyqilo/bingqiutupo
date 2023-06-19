@@ -2975,7 +2975,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u51FA\u73FE4\u500B\u7372\u5F9720\u6B21\u514D\u8CBB\u904A\u6232"
+  m_text: "3 se pr\xE9senter pour obtenir 15 parties gratuites\r\n4 se pr\xE9senter
+    pour obtenir 20 parties gratuites\r\n5 se pr\xE9senter pour obtenir 25 parties
+    gratuites"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 54de429c3bddd614f9da69dca63b2103, type: 2}
   m_sharedMaterial: {fileID: -6001197064409830115, guid: 54de429c3bddd614f9da69dca63b2103,
@@ -3003,7 +3005,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 17.7
+  m_fontSize: 5.65
   m_fontSizeBase: 36
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -4431,7 +4433,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u51FA\u73FE4\u500B\u7372\u5F9720\u6B21\u514D\u8CBB\u904A\u6232"
+  m_text: "3 se pr\xE9senter pour obtenir 15 parties gratuites\r\n4 se pr\xE9senter
+    pour obtenir 20 parties gratuites\r\n5 se pr\xE9senter pour obtenir 25 parties
+    gratuites"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 54de429c3bddd614f9da69dca63b2103, type: 2}
   m_sharedMaterial: {fileID: -6001197064409830115, guid: 54de429c3bddd614f9da69dca63b2103,
@@ -4459,7 +4463,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 17.7
+  m_fontSize: 5.65
   m_fontSizeBase: 36
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -11333,7 +11337,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "3 se pr\xE9senter pour obtenir 15 parties gratuites\r"
+  m_text: "3 se pr\xE9senter pour obtenir 15 parties gratuites\r\n4 se pr\xE9senter
+    pour obtenir 20 parties gratuites\r\n5 se pr\xE9senter pour obtenir 25 parties
+    gratuites"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 54de429c3bddd614f9da69dca63b2103, type: 2}
   m_sharedMaterial: {fileID: -6001197064409830115, guid: 54de429c3bddd614f9da69dca63b2103,
@@ -11361,7 +11367,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 9.15
+  m_fontSize: 5.65
   m_fontSizeBase: 36
   m_fontWeight: 400
   m_enableAutoSizing: 1
@@ -13262,7 +13268,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70bf96f09c1946d6843e6bd550989bee, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  translationName: 357006
+  translationName: 357009
   FallbackText: Times Track
 --- !u!114 &1254828139
 MonoBehaviour:
@@ -15000,7 +15006,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 70bf96f09c1946d6843e6bd550989bee, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  translationName: 357005
+  translationName: 357008
   FallbackText: Times Track
 --- !u!114 &1378662604
 MonoBehaviour:
